@@ -1,4 +1,52 @@
 import numpy as np
+from activation_force import calculate_activation_force
+
+
+def get_trigger_words_accuracy(data_list):
+    micro_count = 0
+    macro_count = 0
+    data_len = len(data_list)
+    for data in data_list:
+        if ' '.join([str(idx) for idx in data.trigger_list]) == data.trigger_words:
+            micro_count += 1
+        if set(data.trigger_list).issubset(set([int(idx) for idx in data.trigger_words.split()])):
+            macro_count += 1
+    return micro_count / data_len * 100, macro_count / data_len * 100
+
+def get_trigger_idx_list_by_waf(word_list, trigger_seed, entity1_idx, entity2_idx, data_list, word_frequency_dict, postag_list=None):
+    '''
+    根据Trigger Seed与Word Activation Force获取完整的关系触发词
+    '''
+    trigger_seed_idx = trigger_seed[1]
+    data_list_len = len(data_list)
+    # 满足要求的词性集合
+    postag_set = {
+        # 名词
+        'NN', 'NNS', 'NNP', 'NNPS',
+        # 副词
+        'RB', 'RBR', 'RBS',
+        # 动词
+        'VB', 'VBD', 'VBG', 'VBZ', 'VBP', 'VBN',
+        # 形容词
+        'JJ', 'JJR', 'JJS',
+        # 介词
+        'IN'
+    }
+    trigger_list = [trigger_seed_idx]
+    for i in range(0, len(word_list)):
+        if i == entity1_idx or i == entity2_idx or i == trigger_seed_idx:
+            continue
+        if postag_list and postag_list[i][1] not in postag_set:
+            continue
+        if i < trigger_seed_idx:
+            waf = calculate_activation_force(word_list[i], trigger_seed[0], data_list, word_frequency_dict)
+        else:
+            waf = calculate_activation_force(trigger_seed[0], word_list[i], data_list, word_frequency_dict)
+        if waf * data_list_len >= 2:
+            trigger_list.append(i)
+    trigger_list.sort()
+    return trigger_list
+
 
 
 def get_word_entity_vector(word_list, entity_idx):
@@ -71,9 +119,9 @@ def get_pos_vector(postag_list):
     
     
 
-def get_relation_trigger_center(word_list, postag_list, dependency_tree, entity1_idx, entity2_idx, beta=0.5):
+def get_relation_trigger_seed(word_list, postag_list, dependency_tree, entity1_idx, entity2_idx, beta=0.5):
     '''
-    获取中心触发词
+    获取触发词种子
     '''
     # 计算序列距离, 得到向量
     order_distance_vector = get_order_distance_vector(word_list, entity1_idx, entity2_idx)

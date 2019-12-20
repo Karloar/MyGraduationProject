@@ -22,12 +22,12 @@ with StanfordCoreNLP('http://127.0.0.1', 9000, logging_level=logging.WARNING) as
         postag_list = nlp.pos_tag(sent)
         dependency_tree = nlp.dependency_parse(sent)
         pagerank = PageRank(word_list, dependency_tree, postag_list, e1_idx, e2_idx)
-        data.relation_trigger_center = pagerank.get_trigger_center()
+        data.trigger_seed = pagerank.get_trigger_center()
 
 count = 0
 for data in data_list:
     # print(data.relation_trigger_center, '----------', data.trigger_words.split())
-    if data.relation_trigger_center[1] in [int(x) for x in data.trigger_words.split()]:
+    if data.trigger_seed[1] in [int(x) for x in data.trigger_words.split()]:
         count += 1
 
-print('准确率：', count / len(data_list))
+print('准确率：', '{}%'.format(str(count / len(data_list) * 100)))
