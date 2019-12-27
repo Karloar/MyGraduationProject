@@ -8,7 +8,7 @@ from data_process.models import (
 from activation_force import get_word_frequency_dict
 from utils import (
     get_relation_trigger_seed, get_trigger_idx_list_by_waf,
-    get_trigger_words_accuracy
+    calculate_accuracy
 )
 
 
@@ -29,17 +29,22 @@ word_frequency_dict = get_word_frequency_dict(data_list)
 
 
 for data in data_list:
-    trigger_seed = get_relation_trigger_seed(
+    data.trigger_seed = get_relation_trigger_seed(
         data.word_list, data.postag_list, data.dependency_tree, data.entity1_idx, data.entity2_idx,
-        beta=0.8
+        beta=0.5
     )
     data.trigger_list = get_trigger_idx_list_by_waf(
-        data.word_list, trigger_seed, data.entity1_idx, data.entity2_idx, data_list, word_frequency_dict, data.postag_list
+        data.word_list, data.trigger_seed, data.entity1_idx, data.entity2_idx, data_list, word_frequency_dict, data.postag_list
     )
 
+micro_accuracy = calculate_accuracy(data_list)
+macro_accuracy = calculate_accuracy(data_list, 'macro')
+seed_micro_accuracy = calculate_accuracy(data_list, 'seed_micro')
+seed_macro_accuracy = calculate_accuracy(data_list, 'seed_macro')
 
-micro_accuracy, macro_accuracy = get_trigger_words_accuracy(data_list)
-print('微准确率：', micro_accuracy)
-print('宏准确率：', macro_accuracy)
+print('触发词种子微准确率：', seed_micro_accuracy)
+print('触发词种子宏准确率：', seed_macro_accuracy)
+print('触发词整体微准确率：', micro_accuracy)
+print('触发词整体宏准确率：', macro_accuracy)
 
 

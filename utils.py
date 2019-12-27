@@ -9,9 +9,69 @@ def get_trigger_words_accuracy(data_list):
     for data in data_list:
         if ' '.join([str(idx) for idx in data.trigger_list]) == data.trigger_words:
             micro_count += 1
-        if set(data.trigger_list).issubset(set([int(idx) for idx in data.trigger_words.split()])):
-            macro_count += 1
+        # if set(data.trigger_list).issubset(set([int(idx) for idx in data.trigger_words.split()])):
+        #     macro_count += 1
+        temp_trigger_words = set([int(x) for x in data.trigger_words.split()])
+        for trigger in data.trigger_list:
+            if trigger in temp_trigger_words:
+                macro_count += 1
+                break
+            
     return micro_count / data_len * 100, macro_count / data_len * 100
+
+
+def calculate_accuracy(data_list, kind='micro'):
+    micro_count = 0
+    macro_count = 0
+    seed_micro_count = 0
+    seed_macro_count = 0
+    data_count = len(data_list)
+    for data in data_list:
+        # 统计提取出关系触发词与标记完全一致的个数
+        if ' '.join([str(idx) for idx in data.trigger_list]) == data.trigger_words:
+            micro_count += 1
+        
+        # 统计提取出关系触发词种子正确个数
+        if hasattr(data, 'postag_list'):
+            postag_list = getattr(data, 'postag_list')
+            seed_is_vb = postag_list[data.trigger_seed[1]][1].startswith('VB')
+            trigger_has_vb = any([postag_list[int(x)][1].startswith('VB') for x in data.trigger_words.split()])
+            seed_is_nn = postag_list[data.trigger_seed[1]][1].startswith('NN')
+            trigger_has_nn = any([postag_list[int(x)][1].startswith('NN') for x in data.trigger_words.split()])
+            seed_is_jj = postag_list[data.trigger_seed[1]][1].startswith('JJ')
+            trigger_has_jj = any([postag_list[int(x)][1].startswith('JJ') for x in data.trigger_words.split()])
+
+            if any([
+                all([seed_is_vb, trigger_has_vb]),
+                all([seed_is_nn, trigger_has_nn]),
+                all([seed_is_jj, trigger_has_jj]),
+                not any([
+                   seed_is_vb, trigger_has_vb,
+                   seed_is_nn, trigger_has_nn,
+                   seed_is_jj, trigger_has_jj
+                ])
+            ]):
+                if str(data.trigger_seed[1]) in data.trigger_words.split():
+                    seed_micro_count += 1
+        
+        # 统计提取出的关系触发词种子包含在标记的个数
+        temp_trigger_words = set([int(x) for x in data.trigger_words.split()])
+        if data.trigger_seed[1] in temp_trigger_words:
+            seed_macro_count += 1
+        
+        # 统计提取出的关系触发词中部分出现在标记中的个数
+        for trigger in data.trigger_list:
+            if trigger in temp_trigger_words:
+                macro_count += 1
+                break
+    accuracy = {
+        'micro': micro_count / data_count * 100,
+        'macro': macro_count / data_count * 100,
+        'seed_micro': seed_micro_count / data_count * 100,
+        'seed_macro': seed_macro_count / data_count * 100 
+    }
+    return accuracy.get(kind, None)
+
 
 def get_trigger_idx_list_by_waf(word_list, trigger_seed, entity1_idx, entity2_idx, data_list, word_frequency_dict, postag_list=None):
     '''
@@ -33,7 +93,7 @@ def get_trigger_idx_list_by_waf(word_list, trigger_seed, entity1_idx, entity2_id
         'IN'
     }
     trigger_list = [trigger_seed_idx]
-    for i in range(0, len(word_list)):
+    for i in range(0, max([entity1_idx, entity2_idx, trigger_seed_idx])):
         if i == entity1_idx or i == entity2_idx or i == trigger_seed_idx:
             continue
         if postag_list and postag_list[i][1] not in postag_set:
@@ -131,6 +191,7 @@ def get_relation_trigger_seed(word_list, postag_list, dependency_tree, entity1_i
     pos_vector = get_pos_vector(postag_list)
     # 计算每个单词的评分, 评分越低的越可能成为中心触发词
     score_vector = (beta * syntactic_distance_vector + (1 - beta) * order_distance_vector) * pos_vector
+    # print(score_vector)
     # print('---------- order distance ---------')
     # print(order_distance_vector)
     # print('---------- Syntactic distance ---------')
@@ -173,92 +234,3 @@ def get_entity_idx(word_list, entity):
         except ValueError:
             break
     return entity_idx
-
-
-
-class PageRank:
-
-    def __init__(self, word_list, dependency_tree, postag_list, entity1_idx, entity2_idx, postag_set=None, beta=0.5, max_iter=20):
-        self._word_list = word_list
-        self._dependency_tree = dependency_tree
-        self._postag_list = postag_list
-        self._entity1_idx = entity1_idx
-        self._entity2_idx = entity2_idx
-        self._beta = beta
-        self._max_iter = max_iter
-        if postag_set:
-            self._postag_set = postag_set
-        else:
-            # 满足要求的词性集合
-            self._postag_set = {
-                # 名词
-                'NN', 'NNS', 'NNP', 'NNPS',
-                # 副词
-                'RB', 'RBR', 'RBS',
-                # 动词
-                'VB', 'VBD', 'VBG', 'VBZ', 'VBP', 'VBN',
-                # 形容词
-                'JJ', 'JJR', 'JJS',
-                # 介词
-                'IN'
-            }
-
-    def __get_pr_vector(self, entity_idx):
-        pr = np.zeros((len(self._word_list), 1))
-        pr[entity_idx, 0] = 1
-        return pr
-    
-    def __get_a_matrix(self):
-        word_list_len = len(self._word_list)
-        a_matrix = np.zeros((word_list_len, word_list_len))
-        for i in range(word_list_len):
-            neighbor = self.__get_neighbor(self._word_list, i, self._dependency_tree)
-            neighbor_num = len(neighbor)
-            for x in neighbor:
-                a_matrix[x, i] = 1 / neighbor_num
-        return a_matrix
-
-    def __get_neighbor(self, word, idx, dependency_tree):
-        '''
-        Get the neighbors of the word in dependency tree
-        :param  word
-        :param  idx: the index of word in word_list
-        :param  dependency_tree
-        '''
-        neighbor = set()
-        for _, from_idx, to_idx in dependency_tree:
-            if from_idx - 1 == idx:
-                if to_idx != 0:
-                    neighbor.add(to_idx - 1)
-            if to_idx - 1 == idx:
-                if from_idx != 0:
-                    neighbor.add(from_idx - 1)
-        return neighbor
-
-    def __get_pi_vector(self, entity_idx):
-        a_matrix = self.__get_a_matrix()
-        pr_vector = self.__get_pr_vector(entity_idx)
-        word_list_len = len(self._word_list)
-
-        old_pi_vector = np.ones((word_list_len, 1)) * (1 / word_list_len)
-        iternum = 0
-        while iternum < self._max_iter:
-            pi_vector = (1 - self._beta) * np.dot(a_matrix, old_pi_vector) + self._beta * pr_vector
-            if len(np.where(np.abs(old_pi_vector - pi_vector) >= 1e-5)[0]) <= 0:
-                break
-            old_pi_vector = pi_vector
-            iternum += 1
-        return pi_vector
-
-    def get_trigger_center(self):
-        pi_vector1 = self.__get_pi_vector(self._entity1_idx)
-        pi_vector2 = self.__get_pi_vector(self._entity2_idx)
-        i_vector = pi_vector1 + pi_vector2 + pi_vector1 * pi_vector2
-        
-        trigger_center, trigger_score, trigger_center_idx = '', -99999, -1
-        for i in range(0, len(self._word_list)):
-            # 判断词性是否满足要求, 并且评分低于当前的分数
-            if all([i != self._entity1_idx, i != self._entity2_idx, self._postag_list[i][1].upper() in self._postag_set, i_vector[i, 0] > trigger_score]):
-                trigger_center, trigger_score, trigger_center_idx = self._word_list[i], i_vector[i, 0], i
-        return trigger_center, trigger_center_idx
-

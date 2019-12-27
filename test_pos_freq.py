@@ -5,7 +5,6 @@ from django.db.models import Q
 from data_process.models import (
     SemEval2010Data, SemEval2010Relation
 )
-from mytools.pk_relation_trigger_extraction import PageRank
 
 
 stanford_path = r'/Users/wanglei/Documents/programs/other/stanford-corenlp-full-2018-02-27'
@@ -13,22 +12,23 @@ stanford_path = r'/Users/wanglei/Documents/programs/other/stanford-corenlp-full-
 data_list = SemEval2010Data.objects.filter(~Q(trigger_words=''))
 
 
+freq_dict = {'NN': 0, 'VB': 0, 'JJ': 0, 'IN': 0, 'RB': 0, 'TO': 0, 'RP': 0}
+single_freq_dict = {}
+
 
 with StanfordCoreNLP('http://127.0.0.1', 9000, logging_level=logging.WARNING) as nlp:
     for data in data_list:
         sent, e1_idx, e2_idx = data.sent, data.entity1_idx, data.entity2_idx
-
         word_list = nlp.word_tokenize(sent)
         postag_list = nlp.pos_tag(sent)
-        dependency_tree = nlp.dependency_parse(sent)
-        pagerank = PageRank(word_list, dependency_tree, postag_list, e1_idx, e2_idx)
-        data.trigger_seed = pagerank.get_trigger_center()
-        data.word_list = word_list
+        # print(data.id, postag_list)
+        for x in data.trigger_words.split():
+            freq_dict[postag_list[int(x)][1][:2]] += 1
+        if len(data.trigger_words.split()) == 1:
+            idx = int(data.trigger_words.split()[0])
+            temp_freq = single_freq_dict.get(postag_list[idx][1][:2], 0)
+            single_freq_dict[postag_list[idx][1][:2]] = temp_freq + 1
+        
 
-count = 0
-for data in data_list:
-    # print(data.relation_trigger_center, '----------', data.trigger_words.split())
-    if data.trigger_seed[1] in [int(x) for x in data.trigger_words.split()]:
-        count += 1
-
-print('准确率：', '{}%'.format(str(count / len(data_list) * 100)))
+print(freq_dict)
+print(single_freq_dict)

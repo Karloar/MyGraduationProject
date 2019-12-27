@@ -21,7 +21,7 @@ with StanfordCoreNLP('http://127.0.0.1', 9000, logging_level=logging.WARNING) as
         word_list = nlp.word_tokenize(sent)
         postag_list = nlp.pos_tag(sent)
         dependency_tree = nlp.dependency_parse(sent)
-        data.trigger_seed = get_relation_trigger_seed(word_list, postag_list, dependency_tree, e1_idx, e2_idx, beta=0.5)
+        data.trigger_seed = get_relation_trigger_seed(word_list, postag_list, dependency_tree, e1_idx, e2_idx, beta=0.8)
         data.word_list = word_list
 
 count = 0
