@@ -6,8 +6,8 @@ from data_process.models import (
     SemEval2010Data, SemEval2010Relation
 )
 from mytools.trigger_seed import TriggerSeedExtraction
-from mytools.activation_force import ActivationForce
-from mytools.relation_trigger import RelationTrigger
+from mytools.activation_force2 import ActivationForce
+from mytools.relation_trigger2 import RelationTrigger
 from mytools.word_preprocessing import MultyProcessWordPreprocessing
 from utils import calculate_accuracy, print_running_time
 
@@ -44,8 +44,8 @@ def main():
             data.entity2_idx,
             data.trigger_seed,
             waf,
-            min_dis=4,
-            epsilon=0.0004
+            min_dis=3,
+            epsilon=0.015
         ).get_relation_trigger_words()
 
     (

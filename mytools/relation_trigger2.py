@@ -12,7 +12,7 @@ class RelationTrigger:
         self._epsilon = epsilon
         self._trigger_words_postag_set = {
             # 名词
-            'NN', 'NNS', 'NNP', 'NNPS',
+            # 'NN', 'NNS', 'NNP', 'NNPS',
             # 副词
             'RB', 'RBR', 'RBS',
             # 动词
@@ -29,6 +29,10 @@ class RelationTrigger:
 
     def get_relation_trigger_words(self):
         trigger_seed_word, trigger_seed_idx = self._trigger_seed
+
+        if self._postag_list[trigger_seed_idx][1] == 'IN':
+            return [trigger_seed_idx]
+        
         end_idx = min([len(self._word_list), trigger_seed_idx + self._min_dis + 1])
         waf_value = []
         for i in range(trigger_seed_idx, end_idx):
