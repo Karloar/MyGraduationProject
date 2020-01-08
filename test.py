@@ -13,7 +13,7 @@ stanford_path = r'/Users/wanglei/Documents/programs/other/stanford-corenlp-full-
 # 259 22 399 577 163 173 203 366 369 616 
 # 613 644 869 877 883 902
 # 944 945
-data = SemEval2010Data.objects.get(pk=1081)
+data = SemEval2010Data.objects.get(pk=1144)
 
 sent, entity1, entity2 = data.sent, data.entity1, data.entity2
 

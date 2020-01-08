@@ -22,7 +22,7 @@ with StanfordCoreNLP('http://127.0.0.1', 9000, logging_level=logging.WARNING) as
     for data in data_list:
         data.word_list = nlp.word_tokenize(data.sent)
 
-data = SemEval2010Data.objects.get(pk=386)
+data = SemEval2010Data.objects.get(pk=1096)
 
 af = ActivationForce(data_list, ip_port_list=[('127.0.0.1', 9000)])
 sent, entity1, entity2 = data.sent, data.entity1, data.entity2
@@ -43,8 +43,8 @@ with StanfordCoreNLP('http://127.0.0.1', 9000, logging_level=logging.WARNING) as
     trigger_seed = re.get_relation_trigger_seed()
     print(trigger_seed)
     for i in range(trigger_seed[1]):
-        print(word_list[i], af.calculate_activation_force(word_list[i], trigger_seed[0], 2), af.word_frequency[word_list[i]])
+        print(word_list[i], af.calculate_activation_force(word_list[i], trigger_seed[0], 5), af.word_frequency[word_list[i]])
     for i in range(trigger_seed[1]+1, len(word_list)):
-        print(word_list[i], af.calculate_activation_force(trigger_seed[0], word_list[i], 2), af.word_frequency[word_list[i]])
+        print(word_list[i], af.calculate_activation_force(trigger_seed[0], word_list[i], 5), af.word_frequency[word_list[i]])
     print(af.word_frequency[trigger_seed[0]])
     
