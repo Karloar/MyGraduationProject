@@ -5,7 +5,7 @@ from django.db.models import Q
 from data_process.models import (
     SemEval2010Data, SemEval2010Relation
 )
-from utils import get_relation_trigger_seed, get_entity_idx
+from mytools.trigger_seed import TriggerSeedExtraction
 
 
 
@@ -13,7 +13,7 @@ stanford_path = r'/Users/wanglei/Documents/programs/other/stanford-corenlp-full-
 # 259 22 399 577 163 173 203 366 369 616 
 # 613 644 869 877 883 902
 # 944 945
-data = SemEval2010Data.objects.get(pk=945)
+data = SemEval2010Data.objects.get(pk=1081)
 
 sent, entity1, entity2 = data.sent, data.entity1, data.entity2
 
@@ -29,5 +29,13 @@ with StanfordCoreNLP('http://127.0.0.1', 9000, logging_level=logging.WARNING) as
     print('----------------------')
     print(dependency_tree)
     print('----------------------')
-    relation_trigger_center = get_relation_trigger_seed(word_list, postag_list, dependency_tree, entity1_idx, entity2_idx, beta=0.8)
-    print(relation_trigger_center)
+    trigger_seed = TriggerSeedExtraction(
+        word_list,
+        dependency_tree,
+        postag_list,
+        entity1_idx,
+        entity2_idx,
+        beta=0.7
+    ).get_relation_trigger_seed()
+    print(trigger_seed)
+    

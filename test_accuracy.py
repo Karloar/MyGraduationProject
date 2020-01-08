@@ -41,10 +41,12 @@ micro_accuracy = calculate_accuracy(data_list)
 macro_accuracy = calculate_accuracy(data_list, 'macro')
 seed_micro_accuracy = calculate_accuracy(data_list, 'seed_micro')
 seed_macro_accuracy = calculate_accuracy(data_list, 'seed_macro')
+seed_first_accuracy = calculate_accuracy(data_list, 'seed_first')
 
 print('触发词种子微准确率：', seed_micro_accuracy)
 print('触发词种子宏准确率：', seed_macro_accuracy)
 print('触发词整体微准确率：', micro_accuracy)
 print('触发词整体宏准确率：', macro_accuracy)
+print('触发词种子为第一触发词概率：', seed_first_accuracy)
 
 

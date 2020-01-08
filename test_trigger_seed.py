@@ -5,59 +5,50 @@ from django.db.models import Q
 from data_process.models import (
     SemEval2010Data, SemEval2010Relation
 )
-from activation_force import get_word_frequency_dict
-from mytools.relation_trigger_extraction import RelationTriggerExtraction
-from utils import (
-    get_trigger_idx_list_by_waf, calculate_accuracy
-)
+from mytools.trigger_seed import TriggerSeedExtraction
+from mytools.activation_force import ActivationForce
+from mytools.relation_trigger import RelationTrigger
+from mytools.word_preprocessing import MultyProcessWordPreprocessing
+from utils import calculate_accuracy, print_running_time
 
 
 
 
 stanford_path = r'/Users/wanglei/Documents/programs/other/stanford-corenlp-full-2018-02-27'
+stanfor_server_list = [('127.0.0.1', 9000)]
 # 259 22
 data_list = SemEval2010Data.objects.filter(~Q(trigger_words=''))
+total_data_list = SemEval2010Data.objects.all()
+
+preprocessed_data_list = MultyProcessWordPreprocessing(stanfor_server_list, data_list).get_processed_data()
+preprocessed_total_data_list = MultyProcessWordPreprocessing(stanfor_server_list, total_data_list).get_processed_data()
+
+waf = ActivationForce(preprocessed_total_data_list)
 
 
-
-
-with StanfordCoreNLP('http://127.0.0.1', 9000, logging_level=logging.WARNING) as nlp:
+@print_running_time
+def main():
     for data in data_list:
-        data.word_list = nlp.word_tokenize(data.sent)
-        data.postag_list = nlp.pos_tag(data.sent)
-        data.dependency_tree = nlp.dependency_parse(data.sent)
-        rte = RelationTriggerExtraction(
+        data.trigger_seed = TriggerSeedExtraction(
             data.word_list,
             data.dependency_tree,
             data.postag_list,
             data.entity1_idx,
             data.entity2_idx,
-            beta=0.8
-        )
-        data.trigger_seed = rte.get_relation_trigger_seed()
-        
+            beta=0.7
+        ).get_relation_trigger_seed()
+      
 
-word_frequency_dict = get_word_frequency_dict(data_list)
-for data in data_list:
-    data.trigger_list = get_trigger_idx_list_by_waf(
-        data.word_list,
-        data.trigger_seed,
-        data.entity1_idx,
-        data.entity2_idx,
-        data_list,
-        word_frequency_dict,
-        data.postag_list
-    )
+    (
+        seed_micro_accuracy,
+        seed_macro_accuracy,
+        seed_first_accuracy,
+    ) = calculate_accuracy(data_list, kind_list=['seed_micro', 'seed_macro', 'seed_first'])
+
+    print('触发词种子微准确率：', seed_micro_accuracy)
+    print('触发词种子宏准确率：', seed_macro_accuracy)
+    print('触发词种子为第一触发词概率：', seed_first_accuracy)
 
 
-micro_accuracy = calculate_accuracy(data_list)
-macro_accuracy = calculate_accuracy(data_list, 'macro')
-seed_micro_accuracy = calculate_accuracy(data_list, 'seed_micro')
-seed_macro_accuracy = calculate_accuracy(data_list, 'seed_macro')
-
-print('触发词种子微准确率：', seed_micro_accuracy)
-print('触发词种子宏准确率：', seed_macro_accuracy)
-print('触发词整体微准确率：', micro_accuracy)
-print('触发词整体宏准确率：', macro_accuracy)
-
-
+if __name__ == "__main__":
+    main()

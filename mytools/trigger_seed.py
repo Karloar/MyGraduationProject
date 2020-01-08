@@ -1,7 +1,7 @@
 import numpy as np
 
 
-class RelationTriggerExtraction:
+class TriggerSeedExtraction:
     
     def __init__(
         self, word_list, dependency_tree, postag_list, entity1_idx, entity2_idx, 
@@ -84,6 +84,8 @@ class RelationTriggerExtraction:
                 trigger_seed, trigger_seed_score, trigger_seed_idx = self._word_list[i], self.score_vector[i], i
         return trigger_seed, trigger_seed_idx
 
+    
+
 
 def get_word_entity_vector(word_list, entity_idx):
     '''
@@ -145,10 +147,10 @@ def get_pos_vector(postag_list):
     pos_vector = np.zeros(postag_len)
     pos_mark = dict(
         {'IN': 0.1},
-        **{vb: 0.15 for vb in ['VB', 'VBD', 'VBG', 'VBZ', 'VBP', 'VBN']},
-        **{nn: 0.2 for nn in ['NN', 'NNS', 'NNP', 'NNPS']},
+        **{vb: 0.1 for vb in ['VB', 'VBD', 'VBG', 'VBZ', 'VBP', 'VBN']},
+        **{nn: 0.12 for nn in ['NN', 'NNS', 'NNP', 'NNPS']},
         **{rb: 0.3 for rb in ['RB', 'RBR', 'RBS']},
-        **{jj: 0.3 for jj in ['JJ', 'JJR', 'JJS']}
+        **{jj: 0.13 for jj in ['JJ', 'JJR', 'JJS']}
     )
     for i in range(postag_len):
         pos_vector[i] = pos_mark.get(postag_list[i][1].upper(), 1)
