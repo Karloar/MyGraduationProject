@@ -13,7 +13,7 @@ class ActivationForce:
 
     def calculate_activation_force(self, word_i, word_j, min_dis):
         ij_frequency, ij_dist = get_ij_frequency_and_dist(word_i, word_j, self._data_list, min_dis)
-        i_frequency, j_frequency = self.word_frequency[word_i], self.word_frequency[word_j]
+        i_frequency, j_frequency = self.word_frequency.get(word_i, 0), self.word_frequency.get(word_j, 0)
         if ij_dist == 0:
             return 0
         return math.sqrt((ij_frequency / i_frequency) * (ij_frequency / j_frequency) / (ij_dist * ij_dist))

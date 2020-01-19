@@ -1,4 +1,5 @@
 import numpy as np
+from tensorflow.keras import Input, Model
 from tensorflow.keras.models import Sequential, load_model
 from tensorflow.keras.layers import (
     Embedding,
@@ -6,7 +7,8 @@ from tensorflow.keras.layers import (
     Bidirectional,
     LSTM,
     Layer,
-    Dense
+    Dense,
+    concatenate
 )
 from tensorflow.keras import backend as K
 from tensorflow.keras.optimizers import Adam
@@ -19,6 +21,9 @@ class BiLstmAttr:
     def __init__(self, config, model_file=None):
 
         self.model_file = model_file
+
+        # 是否使用关系触发词特征
+        self.use_trigger_words = config.get('use_trigger_words', False)
         
         # 句子的最大长度
         self.max_words = config.get('max_words')
@@ -43,29 +48,55 @@ class BiLstmAttr:
         # 准确率精度
         self.digits = config.get('digits', 4)
 
-        # 创建模型
-        self.model = Sequential()
+        # 单词输入
+        input_1 = Input(shape=(self.max_words, ), name='input_1')
 
         # Embedding层
-        self.model.add(Embedding(
+        embedding_out = Embedding(
             input_dim=self.word_num,
             output_dim=self.word_dim,
             input_length=self.max_words,
             trainable=False,
             weights=[self.embedding_matrix],
             name='embedding'
-        ))
+        )(input_1)
 
         # 第一层Dropout
-        self.model.add(Dropout(self.dropout, name='dropout_1'))
+        dropout_out_1 = Dropout(self.dropout, name='dropout_1')(embedding_out)
+
         # 双向LSTM
-        self.model.add(Bidirectional(LSTM(self.word_dim, return_sequences=True), merge_mode='sum'))
+        bilstm_out = Bidirectional(LSTM(self.word_dim, return_sequences=True), merge_mode='sum')(dropout_out_1)
+
         # 第二层Dropout
-        self.model.add(Dropout(self.dropout, name='dropout_2'))
+        dropout_out_2 = Dropout(self.dropout, name='dropout_2')(bilstm_out)
+
+        # attention 输入
+        attention_input = dropout_out_2
+        inputs = [input_1]
+        # 是否加入关系触发词特征
+        if self.use_trigger_words:
+            # 关系触发词特征输入
+            input_2 = Input(shape=(self.max_words,), name='input_2')
+            # 神经网络_1
+            dense_1 = Dense(self.max_words * 2, name='dense_1')(input_2)
+            # 神经网络_2
+            dense_2 = Dense(self.max_words, name='dense_2')(dense_1)
+            dense_2 = K.reshape(dense_2, (-1, self.max_words, 1))
+            attention_input = concatenate([attention_input, dense_2])
+            inputs = [input_1, input_2]
+
         # Attention层
-        self.model.add(AttentionLayer(name='attention_layer'))
+        attention_out = AttentionLayer(name='attention_layer')(attention_input)
+
+        # 第三层Dropout
+        dropout_out_3 = Dropout(self.dropout, name='dropout_3')(attention_out)
+
         # 分类层
-        self.model.add(Dense(self.n_classes, activation='softmax'))
+        output = Dense(self.n_classes, activation='softmax')(dropout_out_3)
+
+        # 创建模型
+        self.model = Model(inputs=inputs, outputs=[output])
+        
         # 编译
         self.model.compile(optimizer=Adam(lr=self.learning_rate), loss="sparse_categorical_crossentropy", metrics=["accuracy"], )
 
@@ -172,6 +203,7 @@ class AttentionLayer(Layer):
         self.M = K.tanh(inputs)
         # self.alpha (None, max_words, 1)
         self.alpha = K.softmax(K.dot(self.M, self.W), axis=1)
+
         # self.r (None, word_dim)
         self.r = K.sum(self.alpha * inputs, axis=1)
         return K.tanh(self.r)
@@ -187,6 +219,7 @@ if __name__ == "__main__":
         'word_num': myword2vecpkl.word_num,
         'word_dim': myword2vecpkl.word_dim,
         'embedding_matrix': myword2vecpkl.embedding_matrix,
-        'n_classes': 10
+        'n_classes': 10,
+        'use_trigger_words': True
     }
     bilstmattr = BiLstmAttr(config)

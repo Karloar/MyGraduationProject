@@ -116,19 +116,21 @@ def get_word_entity_dependency_vector(word_list, dependency_tree, entity_idx):
 
     temp_queue = Queue(len(word_list))
     word_entity_dependency_vector = np.zeros((len(word_list),))
-    word_entity_dependency_vector[entity_idx] = 1
+    word_entity_dependency_vector[entity_idx] = 0
 
     temp_queue.put(entity_idx)
     while not temp_queue.empty():
         idx = temp_queue.get()
         for _, from_idx, to_idx in dependency_tree:
-            if all([from_idx - 1 == idx, to_idx != 0, word_entity_dependency_vector[to_idx - 1] == 0]):
-                word_entity_dependency_vector[to_idx - 1] = word_entity_dependency_vector[idx] + 1
-                temp_queue.put(to_idx - 1)
-            if all([to_idx - 1 == idx, from_idx != 0, word_entity_dependency_vector[from_idx - 1] == 0]):
-                word_entity_dependency_vector[from_idx - 1] = word_entity_dependency_vector[idx] + 1
-                temp_queue.put(from_idx - 1)
-    return word_entity_dependency_vector - 1
+            from_idx -= 1
+            to_idx -= 1
+            if all([from_idx == idx, to_idx != -1, word_entity_dependency_vector[to_idx] == 0]):
+                word_entity_dependency_vector[to_idx] = word_entity_dependency_vector[idx] + 1
+                temp_queue.put(to_idx)
+            if all([to_idx == idx, from_idx != -1, word_entity_dependency_vector[from_idx] == 0]):
+                word_entity_dependency_vector[from_idx] = word_entity_dependency_vector[idx] + 1
+                temp_queue.put(from_idx)
+    return word_entity_dependency_vector
 
 
 def get_syntactic_distance_vector(word_list, dependency_tree, entity1_idx, entity2_idx):
@@ -137,6 +139,7 @@ def get_syntactic_distance_vector(word_list, dependency_tree, entity1_idx, entit
     '''
     word_entity_dependency_vector1 = get_word_entity_dependency_vector(word_list, dependency_tree, entity1_idx)
     word_entity_dependency_vector2 = get_word_entity_dependency_vector(word_list, dependency_tree, entity2_idx)
+    # print(word_entity_dependency_vector1 * word_entity_dependency_vector2)
     return np.sqrt(word_entity_dependency_vector1 * word_entity_dependency_vector2) / max(
         list(word_entity_dependency_vector1) + list(word_entity_dependency_vector2)
     )
